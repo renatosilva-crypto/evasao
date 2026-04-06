@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Evasão no Ensino Superior – INEP 2020–2024</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a3a5c;
+    --secondary: #2e6da4;
+    --accent: #e84545;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --border: #d0dce8;
+    --text: #1e2d3d;
+    --muted: #6b7f94;
+    --good: #27ae60;
+    --mid: #f39c12;
+    --bad: #e84545;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: #fff;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  }
+  header .logo {
+    background: #fff;
+    color: var(--primary);
+    font-weight: 900;
+    font-size: 22px;
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  header p  { font-size: 11px; opacity: .8; margin-top: 2px; }
+  header .badge {
+    margin-left: auto;
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* ── Layout ── */
+  .wrap { padding: 20px 24px; max-width: 1600px; margin: auto; }
+
+  /* ── KPI Cards ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border-left: 4px solid var(--secondary);
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .kpi.good  { border-color: var(--good); }
+  .kpi.mid   { border-color: var(--mid); }
+  .kpi.bad   { border-color: var(--bad); }
+  .kpi label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .kpi .val  { font-size: 26px; font-weight: 800; line-height: 1; }
+  .kpi .sub  { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Filters ── */
+  .filters-panel {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .filters-panel h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+  }
+  .filter-group label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .filter-group select, .filter-group input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text);
+    background: #fff;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .filter-group select:focus, .filter-group input:focus {
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 3px rgba(46,109,164,.15);
+  }
+  .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    align-items: center;
+  }
+  .btn {
+    padding: 7px 18px;
+    border-radius: 6px;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--secondary); color: #fff; }
+  .btn-secondary { background: var(--border); color: var(--text); }
+  .btn:hover { opacity: .88; }
+  #result-count { margin-left: auto; font-size: 11px; color: var(--muted); }
+
+  /* ── Charts row ── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  @media(max-width:1100px){ .charts-row { grid-template-columns: 1fr 1fr; } }
+  @media(max-width:680px){ .charts-row { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .chart-card h3 { font-size: 12px; font-weight: 700; color: var(--primary); margin-bottom: 12px; }
+  .chart-card canvas { max-height: 220px; }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-header h2 { font-size: 14px; font-weight: 700; color: var(--primary); }
+  .table-info { font-size: 11px; color: var(--muted); }
+  .table-wrap { overflow: auto; max-height: 520px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  thead th {
+    background: var(--primary);
+    color: #fff;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { background: var(--secondary); }
+  thead th.sort-asc::after  { content: ' ▲'; }
+  thead th.sort-desc::after { content: ' ▼'; }
+
+  tbody tr { border-bottom: 1px solid #eef2f6; transition: background .1s; }
+  tbody tr:hover { background: #f7fafd; }
+  tbody td { padding: 8px 12px; }
+
+  td.rank-cell {
+    font-weight: 800;
+    text-align: center;
+    width: 52px;
+  }
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .rank-1 { background: #ffd700; color: #7a5800; }
+  .rank-2 { background: #c0c0c0; color: #444; }
+  .rank-3 { background: #cd7f32; color: #fff; }
+  .rank-top { background: #e8f5e9; color: var(--good); }
+  .rank-mid { background: #fff8e1; color: #a07000; }
+  .rank-bot { background: #fce4ec; color: var(--bad); }
+
+  .evasao-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .evasao-bar {
+    height: 8px;
+    border-radius: 4px;
+    min-width: 2px;
+    flex-shrink: 0;
+  }
+  .evasao-val { white-space: nowrap; font-weight: 700; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag-pub-fed { background: #e3f0fb; color: #1a5276; }
+  .tag-pub-est { background: #eaf4ea; color: #1a5c1a; }
+  .tag-pub-mun { background: #fef9e7; color: #7d6608; }
+  .tag-priv-l  { background: #fdecea; color: #7b241c; }
+  .tag-priv-s  { background: #f4ecf7; color: #6c3483; }
+  .tag-esp     { background: #f0f3f4; color: #5d6d7e; }
+
+  .tag-bach { background: #e8f4fd; color: #1a5276; }
+  .tag-lic  { background: #e9f7ef; color: #186a3b; }
+  .tag-tec  { background: #fef5e7; color: #7e5109; }
+
+  td.truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.truncate span { cursor: help; }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    justify-content: flex-end;
+  }
+  .pagination button {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .pagination button:hover { background: var(--bg); }
+  .pagination button:disabled { opacity: .4; cursor: not-allowed; }
+  .pagination .page-info { font-size: 11px; color: var(--muted); padding: 0 6px; }
+  .pagination select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; font-size: 12px; }
+
+  /* loading */
+  #loading {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,.9);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 999;
+    font-size: 15px; color: var(--primary); font-weight: 600;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid var(--border);
+    border-top-color: var(--secondary);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  Carregando dados…
+</div>
+
+<header>
+  <div class="logo">▲</div>
+  <div>
+    <h1>Painel de Evasão no Ensino Superior</h1>
+    <p>Fonte: INEP · Indicadores de Trajetória da Educação Superior · Coorte 2020 · Referência 2024</p>
+  </div>
+  <div class="badge">🏛️ Dados INEP 2020–2024</div>
+</header>
+
+<div class="wrap">
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <label>Total de Registros</label>
+      <div class="val" id="kpi-total">–</div>
+      <div class="sub">cursos × instituições</div>
+    </div>
+    <div class="kpi good">
+      <label>Menor Evasão (Ranking #1)</label>
+      <div class="val" id="kpi-min" style="color:var(--good)">–</div>
+      <div class="sub" id="kpi-min-inst">–</div>
+    </div>
+    <div class="kpi mid">
+      <label>Evasão Média</label>
+      <div class="val" id="kpi-avg" style="color:var(--mid)">–</div>
+      <div class="sub">da seleção atual</div>
+    </div>
+    <div class="kpi mid">
+      <label>Mediana</label>
+      <div class="val" id="kpi-med" style="color:var(--mid)">–</div>
+      <div class="sub">50% dos cursos</div>
+    </div>
+    <div class="kpi bad">
+      <label>Maior Evasão</label>
+      <div class="val" id="kpi-max" style="color:var(--bad)">–</div>
+      <div class="sub" id="kpi-max-inst">–</div>
+    </div>
+    <div class="kpi">
+      <label>Cursos Distintos</label>
+      <div class="val" id="kpi-cursos">–</div>
+      <div class="sub">na seleção atual</div>
+    </div>
+    <div class="kpi">
+      <label>Instituições</label>
+      <div class="val" id="kpi-inst">–</div>
+      <div class="sub">na seleção atual</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-panel">
+    <h2>🔍 Filtros — Segmentação dos Dados</h2>
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label>Região Geográfica</label>
+        <select id="f-regiao" multiple size="3"></select>
+      </div>
+      <div class="filter-group">
+        <label>Unidade Federativa (UF)</label>
+        <select id="f-uf" multiple size="3"></select>
+      </div>
+      <div class="filter-group">
+        <label>Município</label>
+        <select id="f-municipio" multiple size="3"></select>
+      </div>
+      <div class="filter-group">
+        <label>Categoria Administrativa</label>
+        <select id="f-categoria" multiple size="3"></select>
+      </div>
+      <div class="filter-group">
+        <label>Grau Acadêmico</label>
+        <select id="f-grau" multiple size="3"></select>
+      </div>
+      <div class="filter-group">
+        <label>Curso de Graduação</label>
+        <select id="f-curso" multiple size="3"></select>
+      </div>
+      <div class="filter-group">
+        <label>Instituição (busca)</label>
+        <input type="text" id="f-inst" placeholder="Digite parte do nome…">
+      </div>
+      <div class="filter-group">
+        <label>Faixa de Evasão (%)</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="number" id="f-ev-min" placeholder="Mín" min="0" max="100" step="0.1" style="width:80px">
+          <span style="color:var(--muted)">–</span>
+          <input type="number" id="f-ev-max" placeholder="Máx" min="0" max="100" step="0.1" style="width:80px">
+        </div>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" onclick="applyFilters()">Aplicar Filtros &amp; Atualizar Ranking</button>
+      <button class="btn btn-secondary" onclick="clearFilters()">Limpar Tudo</button>
+      <span id="result-count"></span>
+    </div>
+    <p style="margin-top:8px;font-size:10px;color:var(--muted)">
+      💡 Dica: use <strong>Ctrl+clique</strong> (ou <strong>Cmd+clique</strong> no Mac) para selecionar múltiplos valores nos filtros.
+      O ranking é recalculado automaticamente após cada filtro aplicado.
+    </p>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>📊 Evasão Média por Região</h3>
+      <canvas id="chart-regiao"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📊 Evasão Média por Categoria Administrativa</h3>
+      <canvas id="chart-categoria"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📊 Evasão Média por Grau Acadêmico</h3>
+      <canvas id="chart-grau"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📈 Distribuição por Faixa de Evasão</h3>
+      <canvas id="chart-dist"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>🏆 Top 10 Cursos – Menor Evasão Média</h3>
+      <canvas id="chart-top-cursos"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📉 Top 10 Cursos – Maior Evasão Média</h3>
+      <canvas id="chart-worst-cursos"></canvas>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h2>🏅 Ranking de Evasão – Menor Evasão = Melhor Posição</h2>
+      <span class="table-info" id="table-info"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th data-col="rank" class="sort-asc">Rank</th>
+            <th data-col="instituicao">Instituição</th>
+            <th data-col="curso">Curso</th>
+            <th data-col="categoria_admin">Categoria</th>
+            <th data-col="grau_academico">Grau</th>
+            <th data-col="regiao">Região</th>
+            <th data-col="uf">UF</th>
+            <th data-col="municipio">Município</th>
+            <th data-col="evasao">Evasão (%)</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <label for="page-size" style="font-size:11px;color:var(--muted)">Linhas:</label>
+      <select id="page-size" onchange="changePage(1)">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+      </select>
+      <button onclick="changePage(currentPage-1)" id="btn-prev">‹ Anterior</button>
+      <span class="page-info" id="page-info"></span>
+      <button onclick="changePage(currentPage+1)" id="btn-next">Próxima ›</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   GLOBALS
+═══════════════════════════════════════════════════════ */
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+let sortCol = 'rank';
+let sortDir = 'asc';
+
+const charts = {};
+
+/* ═══════════════════════════════════════════════════════
+   LOAD DATA
+═══════════════════════════════════════════════════════ */
+fetch('data.json')
+  .then(r => r.json())
+  .then(json => {
+  allData = json.data;
+  buildSelects(json.filters);
+  applyFilters();
+  document.getElementById('loading').style.display = 'none';
+});
+
+/* ═══════════════════════════════════════════════════════
+   BUILD SELECTS
+═══════════════════════════════════════════════════════ */
+function buildSelects(filters) {
+  populateSelect('f-regiao',    filters.regiao);
+  populateSelect('f-uf',        filters.uf);
+  populateSelect('f-municipio', filters.municipio);
+  populateSelect('f-categoria', filters.categoria_admin);
+  populateSelect('f-grau',      filters.grau_academico);
+  populateSelect('f-curso',     filters.curso);
+}
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   FILTERS
+═══════════════════════════════════════════════════════ */
+function getSelected(id) {
+  const sel = document.getElementById(id);
+  return Array.from(sel.selectedOptions).map(o => o.value);
+}
+
+function applyFilters() {
+  const regiao    = getSelected('f-regiao');
+  const uf        = getSelected('f-uf');
+  const municipio = getSelected('f-municipio');
+  const categoria = getSelected('f-categoria');
+  const grau      = getSelected('f-grau');
+  const curso     = getSelected('f-curso');
+  const instQ     = document.getElementById('f-inst').value.trim().toUpperCase();
+  const evMin     = parseFloat(document.getElementById('f-ev-min').value);
+  const evMax     = parseFloat(document.getElementById('f-ev-max').value);
+
+  filteredData = allData.filter(r => {
+    if (regiao.length    && !regiao.includes(r.regiao))           return false;
+    if (uf.length        && !uf.includes(r.uf))                   return false;
+    if (municipio.length && !municipio.includes(r.municipio))     return false;
+    if (categoria.length && !categoria.includes(r.categoria_admin)) return false;
+    if (grau.length      && !grau.includes(r.grau_academico))     return false;
+    if (curso.length     && !curso.includes(r.curso))             return false;
+    if (instQ            && !r.instituicao.toUpperCase().includes(instQ)) return false;
+    if (!isNaN(evMin)    && r.evasao < evMin)                     return false;
+    if (!isNaN(evMax)    && r.evasao > evMax)                     return false;
+    return true;
+  });
+
+  // Rank by evasao ascending (menor evasão = rank 1)
+  filteredData.sort((a, b) => a.evasao - b.evasao);
+  filteredData.forEach((r, i) => r._rank = i + 1);
+
+  // Apply table sort if user changed column
+  if (sortCol !== 'rank') {
+    filteredData.sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return a._rank - b._rank;
+    });
+  }
+
+  document.getElementById('result-count').textContent =
+    filteredData.length.toLocaleString('pt-BR') + ' registros encontrados';
+
+  updateKPIs();
+  updateCharts();
+  currentPage = 1;
+  renderTable();
+}
+
+function clearFilters() {
+  ['f-regiao','f-uf','f-municipio','f-categoria','f-grau','f-curso'].forEach(id => {
+    const sel = document.getElementById(id);
+    Array.from(sel.options).forEach(o => o.selected = false);
+  });
+  document.getElementById('f-inst').value = '';
+  document.getElementById('f-ev-min').value = '';
+  document.getElementById('f-ev-max').value = '';
+  sortCol = 'rank'; sortDir = 'asc';
+  updateThHeaders();
+  applyFilters();
+}
+
+/* ═══════════════════════════════════════════════════════
+   KPIs
+═══════════════════════════════════════════════════════ */
+function updateKPIs() {
+  const d = filteredData;
+  if (!d.length) {
+    ['kpi-total','kpi-min','kpi-avg','kpi-med','kpi-max','kpi-cursos','kpi-inst'].forEach(id => {
+      document.getElementById(id).textContent = '–';
+    });
+    return;
+  }
+
+  // sorted by evasao asc
+  const sorted = [...d].sort((a,b) => a.evasao - b.evasao);
+  const evArr = sorted.map(r => r.evasao);
+  const avg = evArr.reduce((s,v) => s+v, 0) / evArr.length;
+  const med = evArr.length % 2 === 0
+    ? (evArr[evArr.length/2-1] + evArr[evArr.length/2]) / 2
+    : evArr[Math.floor(evArr.length/2)];
+
+  document.getElementById('kpi-total').textContent = d.length.toLocaleString('pt-BR');
+  document.getElementById('kpi-min').textContent   = fmt(sorted[0].evasao) + '%';
+  document.getElementById('kpi-min-inst').textContent = truncStr(sorted[0].instituicao, 30);
+  document.getElementById('kpi-avg').textContent   = fmt(avg) + '%';
+  document.getElementById('kpi-med').textContent   = fmt(med) + '%';
+  document.getElementById('kpi-max').textContent   = fmt(sorted[sorted.length-1].evasao) + '%';
+  document.getElementById('kpi-max-inst').textContent = truncStr(sorted[sorted.length-1].instituicao, 30);
+  document.getElementById('kpi-cursos').textContent = new Set(d.map(r=>r.curso)).size.toLocaleString('pt-BR');
+  document.getElementById('kpi-inst').textContent   = new Set(d.map(r=>r.instituicao)).size.toLocaleString('pt-BR');
+}
+
+/* ═══════════════════════════════════════════════════════
+   TABLE
+═══════════════════════════════════════════════════════ */
+function renderTable() {
+  const pageSize = parseInt(document.getElementById('page-size').value);
+  const total = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  const slice = filteredData.slice(start, start + pageSize);
+
+  document.getElementById('table-info').textContent =
+    `${total.toLocaleString('pt-BR')} registros · ordenado por evasão ↑`;
+  document.getElementById('page-info').textContent =
+    `Pág. ${currentPage} / ${totalPages}`;
+  document.getElementById('btn-prev').disabled = currentPage <= 1;
+  document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+
+  slice.forEach(r => {
+    const tr = document.createElement('tr');
+    const rank = r._rank;
+    const pct  = r.evasao;
+    const color = pct <= 20 ? '#27ae60' : pct <= 50 ? '#e67e22' : '#e84545';
+    const barW  = Math.round(pct);
+
+    let rankClass = rank <= 3 ? `rank-${rank}` : pct <= 30 ? 'rank-top' : pct <= 60 ? 'rank-mid' : 'rank-bot';
+    let catTag = catTagHtml(r.categoria_admin);
+    let grauTag = grauTagHtml(r.grau_academico);
+
+    tr.innerHTML = `
+      <td class="rank-cell"><span class="rank-badge ${rankClass}">${rank}</span></td>
+      <td class="truncate" title="${esc(r.instituicao)}"><span>${esc(truncStr(r.instituicao, 45))}</span></td>
+      <td class="truncate" title="${esc(r.curso)}"><span>${esc(truncStr(r.curso, 35))}</span></td>
+      <td>${catTag}</td>
+      <td>${grauTag}</td>
+      <td>${esc(r.regiao)}</td>
+      <td>${esc(r.uf)}</td>
+      <td class="truncate" title="${esc(r.municipio)}"><span>${esc(r.municipio)}</span></td>
+      <td>
+        <div class="evasao-bar-wrap">
+          <div class="evasao-bar" style="width:${barW}px;background:${color}"></div>
+          <span class="evasao-val" style="color:${color}">${fmt(pct)}%</span>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function changePage(p) {
+  currentPage = p;
+  renderTable();
+  document.querySelector('.table-wrap').scrollTop = 0;
+}
+
+/* ── Table sort on header click ── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortCol === col) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortCol = col;
+        sortDir = col === 'evasao' || col === 'rank' ? 'asc' : 'asc';
+      }
+      updateThHeaders();
+      applyFilters();
+    });
+  });
+
+  // Live filter on text input
+  document.getElementById('f-inst').addEventListener('input', () => applyFilters());
+  document.getElementById('f-ev-min').addEventListener('change', () => applyFilters());
+  document.getElementById('f-ev-max').addEventListener('change', () => applyFilters());
+});
+
+function updateThHeaders() {
+  document.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════════════ */
+const COLORS = [
+  '#2e6da4','#27ae60','#e84545','#f39c12','#8e44ad',
+  '#16a085','#d35400','#2980b9','#c0392b','#27ae60',
+  '#7f8c8d','#e67e22','#1abc9c','#e74c3c','#9b59b6'
+];
+
+function groupAvg(data, key) {
+  const map = {};
+  data.forEach(r => {
+    if (!map[r[key]]) map[r[key]] = { sum: 0, n: 0 };
+    map[r[key]].sum += r.evasao;
+    map[r[key]].n++;
+  });
+  return Object.entries(map)
+    .map(([label, v]) => ({ label, avg: v.sum / v.n }))
+    .sort((a, b) => a.avg - b.avg);
+}
+
+function makeOrUpdateBar(canvasId, labels, values, colors) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (charts[canvasId]) {
+    charts[canvasId].data.labels = labels;
+    charts[canvasId].data.datasets[0].data = values;
+    charts[canvasId].data.datasets[0].backgroundColor = colors;
+    charts[canvasId].update();
+    return;
+  }
+  charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${fmt(ctx.parsed.y)}%`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 30 } },
+        y: {
+          beginAtZero: true, max: 100,
+          ticks: { callback: v => v + '%', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+function makeOrUpdateHBar(canvasId, labels, values, colors) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (charts[canvasId]) {
+    charts[canvasId].data.labels = labels;
+    charts[canvasId].data.datasets[0].data = values;
+    charts[canvasId].data.datasets[0].backgroundColor = colors;
+    charts[canvasId].update();
+    return;
+  }
+  charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed.x)}%` } }
+      },
+      scales: {
+        x: {
+          beginAtZero: true, max: 100,
+          ticks: { callback: v => v + '%', font: { size: 10 } }
+        },
+        y: { ticks: { font: { size: 9 } } }
+      }
+    }
+  });
+}
+
+function updateCharts() {
+  const d = filteredData;
+
+  // Região
+  const reg = groupAvg(d, 'regiao');
+  makeOrUpdateBar('chart-regiao',
+    reg.map(r => r.label),
+    reg.map(r => +r.avg.toFixed(2)),
+    reg.map((_, i) => COLORS[i % COLORS.length])
+  );
+
+  // Categoria
+  const cat = groupAvg(d, 'categoria_admin');
+  makeOrUpdateBar('chart-categoria',
+    cat.map(r => shortCat(r.label)),
+    cat.map(r => +r.avg.toFixed(2)),
+    cat.map(r => catColor(r.label))
+  );
+
+  // Grau acadêmico
+  const grau = groupAvg(d, 'grau_academico');
+  makeOrUpdateBar('chart-grau',
+    grau.map(r => r.label),
+    grau.map(r => +r.avg.toFixed(2)),
+    ['#2e6da4','#27ae60','#f39c12']
+  );
+
+  // Distribuição por faixa
+  const faixas = ['0–10%','10–20%','20–30%','30–40%','40–50%','50–60%','60–70%','70–80%','80–90%','90–100%'];
+  const counts  = new Array(10).fill(0);
+  d.forEach(r => {
+    const idx = Math.min(9, Math.floor(r.evasao / 10));
+    counts[idx]++;
+  });
+  const ctx = document.getElementById('chart-dist').getContext('2d');
+  if (charts['chart-dist']) {
+    charts['chart-dist'].data.datasets[0].data = counts;
+    charts['chart-dist'].update();
+  } else {
+    charts['chart-dist'] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: faixas,
+        datasets: [{
+          data: counts,
+          backgroundColor: [
+            '#27ae60','#2ecc71','#f1c40f','#e67e22',
+            '#e84545','#c0392b','#922b21','#7b241c','#641e16','#4a0e0e'
+          ],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} cursos` } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+          y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // Top 10 cursos - menor evasão
+  const cursoAvg = groupAvg(d, 'curso');
+  const topCursos = cursoAvg.slice(0, 10);
+  makeOrUpdateHBar('chart-top-cursos',
+    topCursos.map(c => truncStr(c.label, 28)),
+    topCursos.map(c => +c.avg.toFixed(2)),
+    topCursos.map((_, i) => `rgba(39,174,96,${1 - i*0.07})`)
+  );
+
+  // Top 10 cursos - maior evasão
+  const worstCursos = cursoAvg.slice(-10).reverse();
+  makeOrUpdateHBar('chart-worst-cursos',
+    worstCursos.map(c => truncStr(c.label, 28)),
+    worstCursos.map(c => +c.avg.toFixed(2)),
+    worstCursos.map((_, i) => `rgba(232,69,69,${1 - i*0.07})`)
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════ */
+function fmt(n) { return (+n).toFixed(2).replace('.', ','); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function truncStr(s, n) { return String(s).length > n ? String(s).slice(0,n) + '…' : String(s); }
+
+function catTagHtml(cat) {
+  const map = {
+    'PÚBLICA FEDERAL':              ['tag-pub-fed', 'Pub. Fed.'],
+    'PÚBLICA ESTADUAL':             ['tag-pub-est', 'Pub. Est.'],
+    'PÚBLICA MUNICIPAL':            ['tag-pub-mun', 'Pub. Mun.'],
+    'PRIVADA COM FINS LUCRATIVOS':  ['tag-priv-l',  'Priv. L.'],
+    'PRIVADA SEM FINS LUCRATIVOS':  ['tag-priv-s',  'Priv. S/L'],
+    'ESPECIAL':                     ['tag-esp',      'Especial'],
+  };
+  // fuzzy match
+  const key = Object.keys(map).find(k => cat && cat.toUpperCase().includes(k.replace('Ú','U').replace('Ã','A')));
+  if (key) return `<span class="tag ${map[key][0]}">${map[key][1]}</span>`;
+  // fallback: match by content
+  if (!cat) return '';
+  const c = cat.toUpperCase();
+  if (c.includes('FEDERAL'))        return `<span class="tag tag-pub-fed">Pub. Fed.</span>`;
+  if (c.includes('ESTADUAL'))       return `<span class="tag tag-pub-est">Pub. Est.</span>`;
+  if (c.includes('MUNICIPAL'))      return `<span class="tag tag-pub-mun">Pub. Mun.</span>`;
+  if (c.includes('LUCRATIVOS') && c.includes('SEM')) return `<span class="tag tag-priv-s">Priv. S/L</span>`;
+  if (c.includes('LUCRATIVOS'))     return `<span class="tag tag-priv-l">Priv. L.</span>`;
+  if (c.includes('ESPECIAL'))       return `<span class="tag tag-esp">Especial</span>`;
+  return `<span class="tag tag-esp">${esc(cat)}</span>`;
+}
+
+function grauTagHtml(grau) {
+  if (!grau) return '';
+  const g = grau.toUpperCase();
+  if (g.includes('BACH'))      return `<span class="tag tag-bach">Bach.</span>`;
+  if (g.includes('LIC'))       return `<span class="tag tag-lic">Lic.</span>`;
+  if (g.includes('TEC'))       return `<span class="tag tag-tec">Tec.</span>`;
+  return `<span class="tag">${esc(grau)}</span>`;
+}
+
+function shortCat(cat) {
+  if (!cat) return cat;
+  const c = cat.toUpperCase();
+  if (c.includes('FEDERAL'))  return 'Pub. Federal';
+  if (c.includes('ESTADUAL')) return 'Pub. Estadual';
+  if (c.includes('MUNICIPAL'))return 'Pub. Municipal';
+  if (c.includes('SEM FINS')) return 'Priv. S/Lucro';
+  if (c.includes('LUCRAT'))   return 'Priv. c/Lucro';
+  if (c.includes('ESPECIAL')) return 'Especial';
+  return cat;
+}
+
+function catColor(cat) {
+  const c = (cat||'').toUpperCase();
+  if (c.includes('FEDERAL'))  return '#2e6da4';
+  if (c.includes('ESTADUAL')) return '#27ae60';
+  if (c.includes('MUNICIPAL'))return '#f39c12';
+  if (c.includes('SEM FINS')) return '#8e44ad';
+  if (c.includes('LUCRAT'))   return '#e84545';
+  if (c.includes('ESPECIAL')) return '#7f8c8d';
+  return '#95a5a6';
+}
+</script>
+</body>
+</html>
