@@ -666,8 +666,13 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  // Reconstrói todos os selects com opções completas de allData
-  CASCADE_ORDER.forEach(f => rebuildCascadeSelect(f, allData));
+  // Reconstrói cada select com todos os valores de allData e reseta para "— Todos —"
+  CASCADE_ORDER.forEach(f => {
+    const vals = [...new Set(allData.map(r => r[f.field]))]
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+    populateSelect(f.id, vals); // sempre reseta para índice 0 (— Todos —)
+  });
   document.getElementById('f-uespi').checked = false;
   document.getElementById('f-inst').value = '';
   document.getElementById('f-inst').disabled = false;
