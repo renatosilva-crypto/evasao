@@ -370,30 +370,40 @@
   <!-- Filters -->
   <div class="filters-panel">
     <h2>🔍 Filtros — Segmentação dos Dados</h2>
+    <!-- Filtro exclusivo UESPI -->
+    <div style="background:#eaf4ea;border:2px solid #27ae60;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:#1a5c1a;margin:0;">
+        <input type="checkbox" id="f-uespi" onchange="applyFilters()"
+               style="width:18px;height:18px;accent-color:#27ae60;cursor:pointer;flex-shrink:0;">
+        🏛️ Mostrar somente: <span style="text-decoration:underline;">UNIVERSIDADE ESTADUAL DO PIAUÍ</span>
+      </label>
+      <span style="font-size:10px;color:#186a3b;margin-left:auto;">(sobrescreve filtro de Instituição)</span>
+    </div>
+
     <div class="filters-grid">
       <div class="filter-group">
         <label>Região Geográfica</label>
-        <select id="f-regiao" multiple size="3"></select>
+        <select id="f-regiao" onchange="onCascadeChange('f-regiao')"></select>
       </div>
       <div class="filter-group">
         <label>Unidade Federativa (UF)</label>
-        <select id="f-uf" multiple size="3"></select>
+        <select id="f-uf" onchange="onCascadeChange('f-uf')"></select>
       </div>
       <div class="filter-group">
         <label>Município</label>
-        <select id="f-municipio" multiple size="3"></select>
+        <select id="f-municipio" onchange="onCascadeChange('f-municipio')"></select>
       </div>
       <div class="filter-group">
         <label>Categoria Administrativa</label>
-        <select id="f-categoria" multiple size="3"></select>
+        <select id="f-categoria" onchange="onCascadeChange('f-categoria')"></select>
       </div>
       <div class="filter-group">
         <label>Grau Acadêmico</label>
-        <select id="f-grau" multiple size="3"></select>
+        <select id="f-grau" onchange="onCascadeChange('f-grau')"></select>
       </div>
       <div class="filter-group">
         <label>Curso de Graduação</label>
-        <select id="f-curso" multiple size="3"></select>
+        <select id="f-curso" onchange="onCascadeChange('f-curso')"></select>
       </div>
       <div class="filter-group">
         <label>Instituição (busca)</label>
@@ -414,8 +424,7 @@
       <span id="result-count"></span>
     </div>
     <p style="margin-top:8px;font-size:10px;color:var(--muted)">
-      💡 Dica: use <strong>Ctrl+clique</strong> (ou <strong>Cmd+clique</strong> no Mac) para selecionar múltiplos valores nos filtros.
-      O ranking é recalculado automaticamente após cada filtro aplicado.
+      💡 Os filtros em lista suspensa aplicam um valor por vez. O ranking é recalculado automaticamente.
     </p>
   </div>
 
@@ -498,6 +507,16 @@ let sortDir = 'asc';
 
 const charts = {};
 
+// Ordem de cascata dos filtros encadeados
+const CASCADE_ORDER = [
+  { id: 'f-regiao',    field: 'regiao'         },
+  { id: 'f-uf',        field: 'uf'              },
+  { id: 'f-municipio', field: 'municipio'       },
+  { id: 'f-categoria', field: 'categoria_admin' },
+  { id: 'f-grau',      field: 'grau_academico'  },
+  { id: 'f-curso',     field: 'curso'           },
+];
+
 /* ═══════════════════════════════════════════════════════
    LOAD DATA
 ═══════════════════════════════════════════════════════ */
@@ -524,6 +543,11 @@ function buildSelects(filters) {
 
 function populateSelect(id, values) {
   const sel = document.getElementById(id);
+  sel.innerHTML = '';
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = '— Todos —';
+  sel.appendChild(all);
   values.forEach(v => {
     const opt = document.createElement('option');
     opt.value = v;
@@ -533,11 +557,58 @@ function populateSelect(id, values) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   CASCATA DE FILTROS
+═══════════════════════════════════════════════════════ */
+function onCascadeChange(changedId) {
+  const idx = CASCADE_ORDER.findIndex(f => f.id === changedId);
+
+  // Filtra allData aplicando todos os filtros até o alterado (inclusive)
+  let subset = allData;
+  for (let i = 0; i <= idx; i++) {
+    const val = document.getElementById(CASCADE_ORDER[i].id).value;
+    if (val) subset = subset.filter(r => r[CASCADE_ORDER[i].field] === val);
+  }
+
+  // Reconstrói os selects seguintes com as opções disponíveis no subset
+  for (let i = idx + 1; i < CASCADE_ORDER.length; i++) {
+    rebuildCascadeSelect(CASCADE_ORDER[i], subset);
+  }
+
+  applyFilters();
+}
+
+function rebuildCascadeSelect(filterDef, subset) {
+  const sel = document.getElementById(filterDef.id);
+  const currentVal = sel.value; // tenta preservar seleção atual
+  const vals = [...new Set(subset.map(r => r[filterDef.field]))]
+    .filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+
+  sel.innerHTML = '';
+  const allOpt = document.createElement('option');
+  allOpt.value = '';
+  allOpt.textContent = '— Todos —';
+  sel.appendChild(allOpt);
+
+  vals.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+
+  // Mantém a seleção anterior se ainda está disponível no subset
+  if (currentVal && vals.includes(currentVal)) {
+    sel.value = currentVal;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
    FILTERS
 ═══════════════════════════════════════════════════════ */
 function getSelected(id) {
   const sel = document.getElementById(id);
-  return Array.from(sel.selectedOptions).map(o => o.value);
+  const val = sel.value;
+  return val ? [val] : [];
 }
 
 function applyFilters() {
@@ -547,9 +618,14 @@ function applyFilters() {
   const categoria = getSelected('f-categoria');
   const grau      = getSelected('f-grau');
   const curso     = getSelected('f-curso');
-  const instQ     = document.getElementById('f-inst').value.trim().toUpperCase();
+  const uespi     = document.getElementById('f-uespi').checked;
+  const instQ     = uespi ? 'UNIVERSIDADE ESTADUAL DO PIAUÍ'
+                          : document.getElementById('f-inst').value.trim().toUpperCase();
   const evMin     = parseFloat(document.getElementById('f-ev-min').value);
   const evMax     = parseFloat(document.getElementById('f-ev-max').value);
+
+  // Quando UESPI ativo, desabilita campo de busca livre
+  document.getElementById('f-inst').disabled = uespi;
 
   filteredData = allData.filter(r => {
     if (regiao.length    && !regiao.includes(r.regiao))           return false;
@@ -590,11 +666,11 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  ['f-regiao','f-uf','f-municipio','f-categoria','f-grau','f-curso'].forEach(id => {
-    const sel = document.getElementById(id);
-    Array.from(sel.options).forEach(o => o.selected = false);
-  });
+  // Reconstrói todos os selects com opções completas de allData
+  CASCADE_ORDER.forEach(f => rebuildCascadeSelect(f, allData));
+  document.getElementById('f-uespi').checked = false;
   document.getElementById('f-inst').value = '';
+  document.getElementById('f-inst').disabled = false;
   document.getElementById('f-ev-min').value = '';
   document.getElementById('f-ev-max').value = '';
   sortCol = 'rank'; sortDir = 'asc';
